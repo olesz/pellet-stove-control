@@ -31,16 +31,7 @@ class Gpio_inputs(Enum):
 ###########
 # init part
 ###########
-STATUS = {
-	"STATE": state.State.RUN_FORWARD,
-	"STATUS_MESSAGE": ""
-	}
-
 GPIO.setmode(GPIO.BOARD)
-
-TCP_IP = '127.0.0.1'
-TCP_PORT = 5005
-BUFFER_SIZE = 20
 
 ###########
 # functions
@@ -49,51 +40,49 @@ BUFFER_SIZE = 20
 ###########
 # GPIO input callbacks
 def gpio_input_callback_error(channel):
-	global STATUS
 	global CONFIG
 
-	state.set_new_state(STATUS,state.State.ERROR)
+	state.set_new_state(state.State.ERROR)
 
 	for input_gpio_name in Gpio_inputs:
-		if CONFIG.getint(input_gpio_name.value,"gpio") == channel:
-			STATUS["STATUS_MESSAGE"] = input_gpio_name.value
+		if config.getint(input_gpio_name.value,"gpio") == channel:
+			status.set_status_message(input_gpio_name.value)
 
 def gpio_input_callback_stop(channel):
-	global STATUS
 	global CONFIG
 
 	for input_gpio_name in Gpio_inputs:
-		if CONFIG.getint(input_gpio_name.value,"gpio") == channel:
+		if config.getint(input_gpio_name.value,"gpio") == channel:
 			if check_if_inputs_enabled([input_gpio_name]) == [True]:
-				state.set_new_state(STATUS,state.State.STOP)
-				STATUS["STATUS_MESSAGE"] = input_gpio_name.value
+				state.set_new_state(state.State.STOP)
+				status.set_status_message(input_gpio_name.value)
 			else:
-				state.set_new_state(STATUS,state.State.RUN_FORWARD)
-				STATUS["STATUS_MESSAGE"] = ""
+				state.set_new_state(state.State.RUN_FORWARD)
+				status.set_status_message("")
 
 def disable_outputs(goutputs = [e for e in Gpio_outputs]):
 	global CONFIG
 	
 	# setting output GPIOs to low before exit
 	for goutput in goutputs:
-		GPIO.output(CONFIG.getint(goutput.value,"gpio"), GPIO.HIGH)
+		GPIO.output(config.getint(goutput.value,"gpio"), GPIO.HIGH)
 
 def enable_outputs(goutputs = [e for e in Gpio_outputs]):
 	global CONFIG
 	
 	# setting output GPIOs to low before exit
 	for goutput in goutputs:
-		GPIO.output(CONFIG.getint(goutput.value,"gpio"), GPIO.LOW)
+		GPIO.output(config.getint(goutput.value,"gpio"), GPIO.LOW)
 
 def check_if_inputs_enabled(ginputs = [e for e in Gpio_inputs]):
 	global CONFIG
 	result = []
 	
 	for ginput in ginputs:
-		if CONFIG.get(ginput.value,"mode") == "no":
-			result.append(GPIO.input(CONFIG.getint(ginput.value,"gpio")) == GPIO.HIGH)
+		if config.get(ginput.value,"mode") == "no":
+			result.append(GPIO.input(config.getint(ginput.value,"gpio")) == GPIO.HIGH)
 		else:
-			result.append(GPIO.input(CONFIG.getint(ginput.value,"gpio")) == GPIO.LOW)
+			result.append(GPIO.input(config.getint(ginput.value,"gpio")) == GPIO.LOW)
 			
 	return result
 
@@ -102,7 +91,7 @@ def check_if_outputs_enabled(goutputs = [e for e in Gpio_outputs]):
 	result = []
 	
 	for goutput in goutputs:
-		result.append(GPIO.input(CONFIG.getint(goutput.value,"gpio")) == GPIO.LOW)	
+		result.append(GPIO.input(config.getint(goutput.value,"gpio")) == GPIO.LOW)	
 	return result
 
 def cleanup(signum = None, frame = None):
@@ -120,33 +109,33 @@ def initialize_input_gpios(ginputs = [e for e in Gpio_inputs]):
 	# setting input GPIOs based on enabled status
 	for ginput in ginputs:
 		if ginput in (Gpio_inputs.PHASE1, Gpio_inputs.PHASE2, Gpio_inputs.PHASE3, Gpio_inputs.THERMOSTAT):
-			if CONFIG.getboolean(ginput.value,"enabled"):
+			if config.getboolean(ginput.value,"enabled"):
 				# "no" means normally open
 				# config should be validated that it shall contain "no" and "nc" only
-				if CONFIG.get(ginput.value,"mode") == "no":
-					GPIO.setup(CONFIG.getint(ginput.value,"gpio"), GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-					GPIO.add_event_detect(CONFIG.getint(ginput.value,"gpio"), GPIO.BOTH, callback=gpio_input_callback_stop, bouncetime=100)
+				if config.get(ginput.value,"mode") == "no":
+					GPIO.setup(config.getint(ginput.value,"gpio"), GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+					GPIO.add_event_detect(config.getint(ginput.value,"gpio"), GPIO.BOTH, callback=gpio_input_callback_stop, bouncetime=100)
 				else:
-					GPIO.setup(CONFIG.getint(ginput.value,"gpio"), GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-					GPIO.add_event_detect(CONFIG.getint(ginput.value,"gpio"), GPIO.BOTH, callback=gpio_input_callback_stop, bouncetime=100)
+					GPIO.setup(config.getint(ginput.value,"gpio"), GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+					GPIO.add_event_detect(config.getint(ginput.value,"gpio"), GPIO.BOTH, callback=gpio_input_callback_stop, bouncetime=100)
 				
 		if ginput in (Gpio_inputs.ROTATION, Gpio_inputs.OVERHEAT):
-			if CONFIG.getboolean(ginput.value,"enabled"):
+			if config.getboolean(ginput.value,"enabled"):
 				# "no" means normally open
 				# config should be validated that it shall contain "no" and "nc" only
-				if CONFIG.get(ginput.value,"mode") == "no":
-					GPIO.setup(CONFIG.getint(ginput.value,"gpio"), GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-					GPIO.add_event_detect(CONFIG.getint(ginput.value,"gpio"), GPIO.RISING, callback=gpio_input_callback_error, bouncetime=100)
+				if config.get(ginput.value,"mode") == "no":
+					GPIO.setup(config.getint(ginput.value,"gpio"), GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+					GPIO.add_event_detect(config.getint(ginput.value,"gpio"), GPIO.RISING, callback=gpio_input_callback_error, bouncetime=100)
 				else:
-					GPIO.setup(CONFIG.getint(ginput.value,"gpio"), GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-					GPIO.add_event_detect(CONFIG.getint(ginput.value,"gpio"), GPIO.FALLING, callback=gpio_input_callback_error, bouncetime=100)
+					GPIO.setup(config.getint(ginput.value,"gpio"), GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+					GPIO.add_event_detect(config.getint(ginput.value,"gpio"), GPIO.FALLING, callback=gpio_input_callback_error, bouncetime=100)
 
 def initialize_output_gpios(goutputs = [e for e in Gpio_outputs]):
 	global CONFIG
 
 	# setting output GPIOs
 	for goutput in goutputs:
-		GPIO.setup(CONFIG.getint(goutput.value,"gpio"), GPIO.OUT, initial = GPIO.HIGH)
+		GPIO.setup(config.getint(goutput.value,"gpio"), GPIO.OUT, initial = GPIO.HIGH)
 
 ###########
 # main part
@@ -169,38 +158,41 @@ initialize_output_gpios()
 #print check_if_inputs_enabled()
 #print check_if_outputs_enabled()
 
-TCPTHREAD = threading.Thread(target=tcpserver.start_socket, args=(STATUS,CONFIG,))
+TCPTHREAD = threading.Thread(target=tcpserver.start_socket)
 TCPTHREAD.start()
 
 # main loop
 while True:
-	#print STATUS["STATE"], TIMER
+	print state.get_state(), TIMER
 	
-	if STATUS["STATE"] == state.State.RUN_FORWARD:
-		if TIMER < CONFIG.getint("timing","load_time"):
+	if not TCPTHREAD.is_alive():
+		break
+	
+	if state.get_state() == state.State.RUN_FORWARD:
+		if TIMER <= config.getint("timing","load_time"):
 			enable_outputs([Gpio_outputs.LOAD])
 			enable_outputs([Gpio_outputs.VENTILLATOR])
 			enable_outputs([Gpio_outputs.PUMP])
 			TIMER += 1
 		else:
 			TIMER = 1
-			state.set_new_state(STATUS,state.State.RUN_FORWARD_BREAK)
-	elif STATUS["STATE"] == state.State.RUN_FORWARD_BREAK:
-		if TIMER < CONFIG.getint("timing","load_time"):
+			state.set_new_state(state.State.RUN_FORWARD_BREAK)
+	elif state.get_state() == state.State.RUN_FORWARD_BREAK:
+		if TIMER <= config.getint("timing","load_break_time"):
 			disable_outputs([Gpio_outputs.LOAD])
 			enable_outputs([Gpio_outputs.VENTILLATOR])
 			enable_outputs([Gpio_outputs.PUMP])
 			TIMER += 1
 		else:
 			TIMER = 1
-			state.set_new_state(STATUS,state.State.RUN_FORWARD)
-	elif STATUS["STATE"] == state.State.RUN_BACKWARD:
+			state.set_new_state(state.State.RUN_FORWARD)
+	elif state.get_state() == state.State.RUN_BACKWARD:
 		disable_outputs()
 		enable_outputs([Gpio_outputs.LOAD_REVERSE])
-	elif STATUS["STATE"] == state.State.STOP:
+	elif state.get_state() == state.State.STOP:
 		disable_outputs()
 		TIMER = 1
-	elif STATUS["STATE"] == state.State.ERROR:
+	elif state.get_state() == state.State.ERROR:
 		disable_outputs()
 		TIMER = 1
 	

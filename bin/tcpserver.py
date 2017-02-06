@@ -3,10 +3,12 @@
 ###########
 # imports
 ###########
-import state
 import socket
 import select
+import re
 
+import state
+import config
 
 TCP_IP = '127.0.0.1'
 TCP_PORT = 5005
@@ -14,7 +16,7 @@ BUFFER_SIZE = 20  # Normally 1024, but we want fast response
 
 EXIT = False
 
-def start_socket(status, config):
+def start_socket():
 	global EXIT
 
 	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -23,6 +25,9 @@ def start_socket(status, config):
 	s.setblocking(0)
 	s.listen(1)
 	conn = None
+	
+	pattern_set_load_time = re.compile('LOAD_TIME [0-9]+')
+	pattern_set_load_break_time = re.compile('LOAD_BREAK_TIME [0-9]+')
 
 	while EXIT is False and conn is None:
 		try: 
@@ -40,13 +45,18 @@ def start_socket(status, config):
    			data = conn.recv(4096).rstrip('\n').rstrip('\r')
 
                 	if data == 'STOP':
-				state.set_new_state(status, state.State.STOP)
+				state.set_new_state(state.State.STOP)
 				
 			elif data == 'START':
-				state.set_new_state(status, state.State.RUN_FORWARD)
+				state.set_new_state(state.State.RUN_FORWARD)
 			elif data == 'REVERSE':
-				state.set_new_state(status, state.State.RUN_BACKWARD)
-
+				state.set_new_state(state.State.RUN_BACKWARD)
+			elif pattern_set_load_time.match(data):
+				config.set("timing","load_time", data.split()[1])
+				config.write_config()
+			elif pattern_set_load_break_time.match(data):
+				config.set("timing","load_break_time", data.split()[1])
+				config.write_config()
 	if conn is not None:
 		conn.close()
 	s.close()

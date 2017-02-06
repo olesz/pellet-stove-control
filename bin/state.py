@@ -16,30 +16,47 @@ class State(Enum):
 	ERROR = 5
 
 ###########
+# init part
+###########
+STATE = {
+	"STATE": State.RUN_FORWARD,
+	"STATUS_MESSAGE": ""
+	}
+
+###########
 # functions
 ###########
-def set_new_state(status, new_state):
+def set_new_state(new_state):
 	
 	# RUN_FORWARD -> RUN_BACKWARD shall not be possible, stop first
-	if status["STATE"] == State.RUN_FORWARD:
+	if STATE["STATE"] == State.RUN_FORWARD:
 		if new_state == State.RUN_BACKWARD:
 			return False
 	# RUN_FORWARD_BREAK -> RUN_BACKWARD shall not be possible, stop first
-	elif status["STATE"] == State.RUN_FORWARD_BREAK:
+	elif STATE["STATE"] == State.RUN_FORWARD_BREAK:
 		if new_state == State.RUN_BACKWARD:
 			return False
 	# RUN_BACKWARD -> RUN_FORWARD and RUN_FORWARD_BREAK shall not be possible, stop first
-	elif status["STATE"] == State.RUN_BACKWARD:
+	elif STATE["STATE"] == State.RUN_BACKWARD:
 		if new_state == State.RUN_FORWARD or new_state == State.RUN_FORWARD_BREAK:
 			return False
 	# STOP -> RUN_FORWARD_BREAK shall not be possible, has no sense
-	elif status["STATE"] == State.STOP:
+	elif STATE["STATE"] == State.STOP:
 		if new_state == State.RUN_FORWARD_BREAK:
 			return False
 	# ERROR -> RUN_FORWARD_BREAK shall not be possible, has no sense
-	elif status["STATE"] == State.ERROR:
+	elif STATE["STATE"] == State.ERROR:
 		if new_state == State.RUN_FORWARD_BREAK:
 			return False
 
-	status["STATE"] = new_state
+	STATE["STATE"] = new_state
 	return True
+
+def get_state():
+	return STATE["STATE"]
+
+def set_status_message(message):
+	STATE["STATUS_MESSAGE"] = message
+
+def get_status_message():
+	return STATE["STATUS_MESSAGE"]
