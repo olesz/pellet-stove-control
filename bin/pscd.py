@@ -5,21 +5,14 @@
 ###########
 import RPi.GPIO as GPIO
 import time
-import ConfigParser
-import os
 import signal
 import sys
 from enum import Enum
+import threading
 
-###########
-# internal classes
-###########
-class State(Enum):
-	RUN_FORWARD = 1
-	RUN_FORWARD_BREAK = 2
-	RUN_BACKWARD = 3
-	STOP = 4
-	ERROR = 5
+import state
+import tcpserver
+import config
 	
 class Gpio_outputs(Enum):
 	LOAD = "load-motor"
@@ -38,13 +31,16 @@ class Gpio_inputs(Enum):
 ###########
 # init part
 ###########
-SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 STATUS = {
-	"STATE": State.RUN_FORWARD,
+	"STATE": state.State.RUN_FORWARD,
 	"STATUS_MESSAGE": ""
 	}
 
 GPIO.setmode(GPIO.BOARD)
+
+TCP_IP = '127.0.0.1'
+TCP_PORT = 5005
+BUFFER_SIZE = 20
 
 ###########
 # functions
@@ -56,7 +52,7 @@ def gpio_input_callback_error(channel):
 	global STATUS
 	global CONFIG
 
-	set_new_state(State.ERROR)
+	state.set_new_state(STATUS,state.State.ERROR)
 
 	for input_gpio_name in Gpio_inputs:
 		if CONFIG.getint(input_gpio_name.value,"gpio") == channel:
@@ -69,20 +65,11 @@ def gpio_input_callback_stop(channel):
 	for input_gpio_name in Gpio_inputs:
 		if CONFIG.getint(input_gpio_name.value,"gpio") == channel:
 			if check_if_inputs_enabled([input_gpio_name]) == [True]:
-				set_new_state(State.STOP)
+				state.set_new_state(STATUS,state.State.STOP)
 				STATUS["STATUS_MESSAGE"] = input_gpio_name.value
 			else:
-				set_new_state(State.RUN_FORWARD)
+				state.set_new_state(STATUS,state.State.RUN_FORWARD)
 				STATUS["STATUS_MESSAGE"] = ""
-
-def read_config(signum = None, frame = None):
-	global CONFIG
-	
-	CONFIG = ConfigParser.ConfigParser()
-	CONFIG.read(os.path.join(SCRIPT_DIR,"..","config","config.ini"))
-
-def write_config():
-	pass
 
 def disable_outputs(goutputs = [e for e in Gpio_outputs]):
 	global CONFIG
@@ -121,6 +108,8 @@ def check_if_outputs_enabled(goutputs = [e for e in Gpio_outputs]):
 def cleanup(signum = None, frame = None):
 	disable_outputs()
 	GPIO.cleanup()
+	tcpserver.stop_socket()
+	TCPTHREAD.join()
 	# exit is needed because otherwise some GPIO commands could be executed before
 	# program termination causing runtime exception
 	sys.exit()
@@ -159,33 +148,6 @@ def initialize_output_gpios(goutputs = [e for e in Gpio_outputs]):
 	for goutput in goutputs:
 		GPIO.setup(CONFIG.getint(goutput.value,"gpio"), GPIO.OUT, initial = GPIO.HIGH)
 
-def set_new_state(new_state):
-	global STATUS
-	
-	# RUN_FORWARD -> RUN_BACKWARD shall not be possible, stop first
-	if STATUS["STATE"] == State.RUN_FORWARD:
-		if new_state == State.RUN_BACKWARD:
-			return False
-	# RUN_FORWARD_BREAK -> RUN_BACKWARD shall not be possible, stop first
-	elif STATUS["STATE"] == State.RUN_FORWARD_BREAK:
-		if new_state == State.RUN_BACKWARD:
-			return False
-	# RUN_BACKWARD -> RUN_FORWARD and RUN_FORWARD_BREAK shall not be possible, stop first
-	elif STATUS["STATE"] == State.RUN_BACKWARD:
-		if new_state == State.RUN_FORWARD or net_state == State.RUN_FORWARD_BREAK:
-			return False
-	# STOP -> RUN_FORWARD_BREAK shall not be possible, has no sense
-	elif STATUS["STATE"] == State.STOP:
-		if new_state == State.RUN_FORWARD_BREAK:
-			return False
-	# ERROR -> RUN_FORWARD_BREAK shall not be possible, has no sense
-	elif STATUS["STATE"] == State.ERROR:
-		if new_state == State.RUN_FORWARD_BREAK:
-			return False
-
-	STATUS["STATE"] = new_state
-	return True
-
 ###########
 # main part
 ###########
@@ -193,10 +155,10 @@ def set_new_state(new_state):
 signal.signal(signal.SIGTERM, cleanup)
 signal.signal(signal.SIGINT, cleanup)
 # read config from and start over if SIGUSR1 is received
-signal.signal(signal.SIGUSR1, read_config)
+signal.signal(signal.SIGUSR1, config.read_config)
 
 # read config
-read_config()
+CONFIG = config.read_config()
 
 # set timers to values from config
 TIMER = 1
@@ -204,15 +166,17 @@ TIMER = 1
 initialize_input_gpios()
 initialize_output_gpios()
 
-print check_if_inputs_enabled()
-print check_if_outputs_enabled()
-	
+#print check_if_inputs_enabled()
+#print check_if_outputs_enabled()
+
+TCPTHREAD = threading.Thread(target=tcpserver.start_socket, args=(STATUS,CONFIG,))
+TCPTHREAD.start()
 
 # main loop
 while True:
-	print STATUS["STATE"], TIMER
+	#print STATUS["STATE"], TIMER
 	
-	if STATUS["STATE"] == State.RUN_FORWARD:
+	if STATUS["STATE"] == state.State.RUN_FORWARD:
 		if TIMER < CONFIG.getint("timing","load_time"):
 			enable_outputs([Gpio_outputs.LOAD])
 			enable_outputs([Gpio_outputs.VENTILLATOR])
@@ -220,8 +184,8 @@ while True:
 			TIMER += 1
 		else:
 			TIMER = 1
-			set_new_state(State.RUN_FORWARD_BREAK)
-	elif STATUS["STATE"] == State.RUN_FORWARD_BREAK:
+			state.set_new_state(STATUS,state.State.RUN_FORWARD_BREAK)
+	elif STATUS["STATE"] == state.State.RUN_FORWARD_BREAK:
 		if TIMER < CONFIG.getint("timing","load_time"):
 			disable_outputs([Gpio_outputs.LOAD])
 			enable_outputs([Gpio_outputs.VENTILLATOR])
@@ -229,14 +193,14 @@ while True:
 			TIMER += 1
 		else:
 			TIMER = 1
-			set_new_state(State.RUN_FORWARD)
-	elif STATUS["STATE"] == State.RUN_BACKWARD:
+			state.set_new_state(STATUS,state.State.RUN_FORWARD)
+	elif STATUS["STATE"] == state.State.RUN_BACKWARD:
 		disable_outputs()
 		enable_outputs([Gpio_outputs.LOAD_REVERSE])
-	elif STATUS["STATE"] == State.STOP:
+	elif STATUS["STATE"] == state.State.STOP:
 		disable_outputs()
 		TIMER = 1
-	elif STATUS["STATE"] == State.ERROR:
+	elif STATUS["STATE"] == state.State.ERROR:
 		disable_outputs()
 		TIMER = 1
 	
