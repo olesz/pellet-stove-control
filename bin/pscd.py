@@ -158,7 +158,7 @@ initialize_output_gpios()
 #print check_if_inputs_enabled()
 #print check_if_outputs_enabled()
 
-TCPTHREAD = threading.Thread(target=tcpserver.start_socket)
+TCPTHREAD = threading.Thread(target=tcpserver.start_socket, args=(config.get("tcp-server","ip"),config.getint("tcp-server","port")))
 TCPTHREAD.start()
 
 # main loop
