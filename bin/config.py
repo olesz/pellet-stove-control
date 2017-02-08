@@ -5,18 +5,26 @@
 ###########
 import ConfigParser
 import os
+import threading
 
 ###########
 # init part
 ###########
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 CONFIG = None
+LOCK = threading.RLock()
 
 def read_config(signum = None, frame = None):
 	global CONFIG
-
-	CONFIG = ConfigParser.ConfigParser()
-	CONFIG.read(os.path.join(SCRIPT_DIR,"..","config","config.ini"))
+	global LOCK
+	
+	LOCK.acquire()
+	
+	try:
+		CONFIG = ConfigParser.ConfigParser()
+		CONFIG.read(os.path.join(SCRIPT_DIR,"..","config","config.ini"))
+	finally:
+		LOCK.release()
 
 def write_config():
 	global CONFIG
@@ -35,4 +43,11 @@ def getboolean(a,b):
 	return CONFIG.getboolean(a,b)
 
 def set(a,b,c):
-	CONFIG.set(a,b,c)
+	global LOCK
+	
+	LOCK.acquire()
+	
+	try:
+		CONFIG.set(a,b,c)
+	finally:
+		LOCK.release()
