@@ -97,8 +97,6 @@ def check_if_outputs_enabled(goutputs = [e for e in Gpio_outputs]):
 def cleanup(signum = None, frame = None):
 	disable_outputs()
 	GPIO.cleanup()
-	tcpserver.stop_socket()
-	TCPTHREAD.join()
 	# exit is needed because otherwise some GPIO commands could be executed before
 	# program termination causing runtime exception
 	sys.exit()
@@ -159,6 +157,7 @@ initialize_output_gpios()
 #print check_if_outputs_enabled()
 
 TCPTHREAD = threading.Thread(target=tcpserver.start_socket, args=(config.get("tcp-server","ip"),config.getint("tcp-server","port")))
+TCPTHREAD.daemon = True
 TCPTHREAD.start()
 
 # main loop
@@ -174,6 +173,7 @@ while True:
 			enable_outputs([Gpio_outputs.VENTILLATOR])
 			enable_outputs([Gpio_outputs.PUMP])
 			TIMER += 1
+			time.sleep(1)
 		else:
 			TIMER = 1
 			state.set_new_state(state.State.RUN_FORWARD_BREAK)
@@ -183,20 +183,22 @@ while True:
 			enable_outputs([Gpio_outputs.VENTILLATOR])
 			enable_outputs([Gpio_outputs.PUMP])
 			TIMER += 1
+			time.sleep(1)
 		else:
 			TIMER = 1
 			state.set_new_state(state.State.RUN_FORWARD)
 	elif state.get_state() == state.State.RUN_BACKWARD:
 		disable_outputs()
 		enable_outputs([Gpio_outputs.LOAD_REVERSE])
+		time.sleep(1)
 	elif state.get_state() == state.State.STOP:
 		disable_outputs()
 		TIMER = 1
+		time.sleep(1)
 	elif state.get_state() == state.State.ERROR:
 		disable_outputs()
 		TIMER = 1
-	
-	time.sleep(1)
+		time.sleep(1)
 
 # calling cleanup
 cleanup()

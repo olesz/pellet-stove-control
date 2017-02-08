@@ -5,6 +5,7 @@
 ###########
 from enum import Enum
 import threading
+import tcpserver
 
 ###########
 # internal classes
@@ -58,6 +59,7 @@ def set_new_state(new_state):
 	finally:
 		if result:
 			STATE["STATE"] = new_state
+			tcpserver.set_notify(True)
 		LOCK.release()
 		return result
 

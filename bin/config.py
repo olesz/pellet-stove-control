@@ -7,6 +7,8 @@ import ConfigParser
 import os
 import threading
 
+import tcpserver
+
 ###########
 # init part
 ###########
@@ -33,21 +35,23 @@ def write_config():
 	CONFIG.write(cfgfile)
 	cfgfile.close()
 
-def get(a,b):
-	return CONFIG.get(a,b)
+def get(section, variable):
+	return CONFIG.get(section, variable)
 
-def getint(a,b):
-	return CONFIG.getint(a,b)
+def getint(section, variable):
+	return CONFIG.getint(section, variable)
 
-def getboolean(a,b):
-	return CONFIG.getboolean(a,b)
+def getboolean(section, variable):
+	return CONFIG.getboolean(section, variable)
 
-def set(a,b,c):
+def set(section, variable, value):
 	global LOCK
 	
 	LOCK.acquire()
 	
 	try:
-		CONFIG.set(a,b,c)
+		if section == "timing":
+			tcpserver.set_notify(True)
+		CONFIG.set(section,variable,value)
 	finally:
 		LOCK.release()
