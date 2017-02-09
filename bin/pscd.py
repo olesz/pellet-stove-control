@@ -46,7 +46,7 @@ def gpio_input_callback_error(channel):
 
 	for input_gpio_name in Gpio_inputs:
 		if config.getint(input_gpio_name.value,"gpio") == channel:
-			status.set_status_message(input_gpio_name.value)
+			state.set_status_message(input_gpio_name.value)
 
 def gpio_input_callback_stop(channel):
 	global CONFIG
@@ -55,10 +55,10 @@ def gpio_input_callback_stop(channel):
 		if config.getint(input_gpio_name.value,"gpio") == channel:
 			if check_if_inputs_enabled([input_gpio_name]) == [True]:
 				state.set_new_state(state.State.STOP)
-				status.set_status_message(input_gpio_name.value)
+				state.set_status_message(input_gpio_name.value)
 			else:
 				state.set_new_state(state.State.RUN_FORWARD)
-				status.set_status_message("")
+				state.set_status_message("")
 
 def disable_outputs(goutputs = [e for e in Gpio_outputs]):
 	global CONFIG

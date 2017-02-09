@@ -7,7 +7,7 @@ import socket
 import threading
 import time
 
-import clientThread
+import client_thread
 
 ###########
 # init part
@@ -16,33 +16,40 @@ THREADLIST = []
 LOCK = threading.RLock()
 
 def start_socket(ip, port):
-	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-	s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-	s.bind((ip, port))
-	s.listen(1)
+	server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+	server_socket.bind((ip, port))
+	server_socket.listen(1)
 
 	# this part of the socket is async because if the main program exited
 	# and stop_socket was called then this thread shall terminate
 	while True:		
-		conn, addr = s.accept()
+		conn, addr = server_socket.accept()
 		
-		print 'Connection address:', addr
-		client_thread = clientThread.ClientThread(conn)
-		client_thread.daemon = True
+		client_th = client_thread.ClientThread(conn)
+		client_th.daemon = True
 		
-		LOCK.acquire()
-		THREADLIST.append(client_thread)
-		LOCK.release()
+		threadlist_add(client_th)
 		
-		client_thread.start()
-
+		client_th.start()
+		
+		# just for safety reasons ...
+		# because thread is removed from threadlist in client_thread cleanup
 		for thread in THREADLIST:
 			if not thread.is_alive():
-				LOCK.acquire()
-				THREADLIST.remove(thread)
-				LOCK.release()
+				threadlist_remove(thread)
 
-	s.close()
+	server_socket.close()
+
+def threadlist_add(thread):
+	LOCK.acquire()
+	THREADLIST.append(thread)
+	LOCK.release()
+
+def threadlist_remove(thread):
+	LOCK.acquire()
+	THREADLIST.remove(thread)
+	LOCK.release()
 
 def set_notify(notify):	
 	LOCK.acquire()
