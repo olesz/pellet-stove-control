@@ -55,6 +55,6 @@ def set_notify(notify):
 	LOCK.acquire()
 	
 	for thread in THREADLIST:
-		thread.notifyStatus()
+		thread.notify_status()
 
 	LOCK.release()
