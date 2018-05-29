@@ -114,7 +114,7 @@ def initialize_input_gpios(ginputs = [e for e in Gpio_inputs]):
 					GPIO.setup(config.getint(ginput.value,"gpio"), GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 					GPIO.add_event_detect(config.getint(ginput.value,"gpio"), GPIO.BOTH, callback=gpio_input_callback_stop, bouncetime=100)
 				else:
-					GPIO.setup(config.getint(ginput.value,"gpio"), GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+					GPIO.setup(config.getint(ginput.value,"gpio"), GPIO.IN, pull_up_down=GPIO.PUD_UP)
 					GPIO.add_event_detect(config.getint(ginput.value,"gpio"), GPIO.BOTH, callback=gpio_input_callback_stop, bouncetime=100)
 				
 		if ginput in (Gpio_inputs.ROTATION, Gpio_inputs.OVERHEAT):
@@ -125,7 +125,7 @@ def initialize_input_gpios(ginputs = [e for e in Gpio_inputs]):
 					GPIO.setup(config.getint(ginput.value,"gpio"), GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 					GPIO.add_event_detect(config.getint(ginput.value,"gpio"), GPIO.RISING, callback=gpio_input_callback_error, bouncetime=100)
 				else:
-					GPIO.setup(config.getint(ginput.value,"gpio"), GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+					GPIO.setup(config.getint(ginput.value,"gpio"), GPIO.IN, pull_up_down=GPIO.PUD_UP)
 					GPIO.add_event_detect(config.getint(ginput.value,"gpio"), GPIO.FALLING, callback=gpio_input_callback_error, bouncetime=100)
 
 def initialize_output_gpios(goutputs = [e for e in Gpio_outputs]):
@@ -141,7 +141,7 @@ def initialize_output_gpios(goutputs = [e for e in Gpio_outputs]):
 # add signal handlers
 signal.signal(signal.SIGTERM, cleanup)
 signal.signal(signal.SIGINT, cleanup)
-# read config from and start over if SIGUSR1 is received
+# read config and start over if SIGUSR1 is received
 signal.signal(signal.SIGUSR1, config.read_config)
 
 # read config

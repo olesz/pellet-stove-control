@@ -59,6 +59,8 @@ class ClientThread(Thread):
 						tcpclient.status_changed_notification(data)
 
 					self.response_text = data
+		except Exception as e:
+			logging.error(traceback.format_exc())
 
 		finally:
 			if self.conn is not None:
